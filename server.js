@@ -6,8 +6,20 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const TOKEN = '7965716660:AAHExQooYGa2zT_bueGmKxnri9GDOaAeKXE';
-const bot = new TelegramBot(TOKEN);
+const TOKEN = process.env.TELEGRAM_BOT_TOKEN || '7965716660:AAHExQooYGa2zT_bueGmKxnri9GDOaAeKXE';
+
+// Инициализируем бота с polling - ВАЖНО!
+const bot = new TelegramBot(TOKEN, {
+  polling: {
+    interval: 300,
+    autoStart: true,
+    params: {
+      timeout: 10
+    }
+  }
+});
+
+console.log('🤖 Telegram Bot started with polling...');
 
 // База данных в памяти
 let users = {};
@@ -51,11 +63,83 @@ function generateCheckId() {
   return 'CH' + Date.now() + Math.random().toString(36).substr(2, 5).toUpperCase();
 }
 
-// Middleware - ИСПРАВЛЕННЫЙ ПУТЬ!
+// Команды бота
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  const user = initUser(chatId, msg.from);
+  
+  const welcomeMessage = `
+🎉 *Добро пожаловать в NeonCrypto!*
+
+Ваш баланс:
+₿ BTC: ${user.balance.BTC}
+Ξ ETH: ${user.balance.ETH}
+💵 USDT: ${user.balance.USDT}
+🪙 LCOIN: ${user.balance.LCOIN}
+
+*Доступные команды:*
+/balance - Показать баланс
+/transfer - Перевод средств
+/checks - Работа с чеками
+/stats - Статистика
+
+💡 *Откройте веб-приложение для полного функционала!*
+  `;
+  
+  bot.sendMessage(chatId, welcomeMessage, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '📱 Открыть веб-приложение', web_app: { url: `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'your-app.onrender.com'}` } }],
+        [{ text: '💰 Баланс', callback_data: 'balance' }, { text: '🔄 Перевод', callback_data: 'transfer' }]
+      ]
+    }
+  });
+});
+
+bot.onText(/\/balance/, (msg) => {
+  const chatId = msg.chat.id;
+  const user = initUser(chatId, msg.from);
+  
+  const balanceMessage = `
+💼 *Ваш баланс:*
+
+₿ Bitcoin: *${user.balance.BTC}*
+Ξ Ethereum: *${user.balance.ETH}*
+💵 Tether: *${user.balance.USDT}*
+🪙 LCoin: *${user.balance.LCOIN}*
+
+Уровень: *${user.level}*
+Опыт: *${user.xp} XP*
+  `;
+  
+  bot.sendMessage(chatId, balanceMessage, { parse_mode: 'Markdown' });
+});
+
+bot.on('callback_query', (callbackQuery) => {
+  const msg = callbackQuery.message;
+  const chatId = msg.chat.id;
+  const data = callbackQuery.data;
+  
+  if (data === 'balance') {
+    const user = initUser(chatId, callbackQuery.from);
+    const balanceMessage = `
+💼 *Баланс:*
+₿ BTC: ${user.balance.BTC}
+Ξ ETH: ${user.balance.ETH}  
+💵 USDT: ${user.balance.USDT}
+🪙 LCOIN: ${user.balance.LCOIN}
+    `;
+    
+    bot.sendMessage(chatId, balanceMessage, { parse_mode: 'Markdown' });
+  }
+});
+
+// Middleware
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// Главная страница - ИСПРАВЛЕННЫЙ ПУТЬ!
+// Главная страница
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -105,6 +189,14 @@ app.post('/api/transfer', async (req, res) => {
     };
     transactions.push(transaction);
 
+    // Уведомляем пользователей через бота
+    try {
+      bot.sendMessage(fromUserId, `✅ Перевод выполнен!\n${amount} ${currency} -> @${toUsername}\n+10 XP`);
+      bot.sendMessage(toUser.id, `💸 Вам перевели ${amount} ${currency} от @${fromUser.username || fromUser.first_name}`);
+    } catch (botError) {
+      console.log('Bot notification failed:', botError);
+    }
+
     res.json({ success: true, newBalance: fromUser.balance, transaction, xp: fromUser.xp });
   } catch (error) {
     res.status(500).json({ error: '❌ Ошибка перевода' });
@@ -138,11 +230,22 @@ app.get('/api/crypto', async (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date(),
+    users: Object.keys(users).length,
+    bot: 'running'
+  });
+});
+
+// Обработка ошибок бота
+bot.on('error', (error) => {
+  console.log('Bot error:', error);
 });
 
 // Запуск сервера
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📁 Static files from: ${path.join(__dirname, 'public')}`);
+  console.log(`🤖 Bot token: ${TOKEN ? 'SET' : 'MISSING'}`);
 });
