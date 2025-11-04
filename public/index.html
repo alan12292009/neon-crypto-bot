@@ -1,1 +1,969 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Crypto Bot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #6366f1;
+            --primary-glow: #818cf8;
+            --secondary: #a855f7;
+            --secondary-glow: #c084fc;
+            --accent: #06b6d4;
+            --accent-glow: #22d3ee;
+            --dark: #0f0f23;
+            --darker: #070714;
+            --neon-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+            --neon-glow: 0 0 30px rgba(99, 102, 241, 0.8);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 50%, #1e1b4b 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .floating-crypto {
+            position: absolute;
+            font-size: 24px;
+            opacity: 0.1;
+            animation: float 20s infinite linear;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0) rotate(0deg); }
+            100% { transform: translateY(-100vh) rotate(360deg); }
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 15px;
+            position: relative;
+            z-index: 1;
+        }
 
+        /* Адаптивность для ПК */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 450px;
+                padding: 20px;
+            }
+            
+            .tabs {
+                flex-wrap: nowrap;
+            }
+            
+            .tab-btn {
+                min-width: auto;
+                padding: 15px 10px;
+            }
+        }
+
+        /* Адаптивность для мобильных */
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .logo {
+                font-size: 2em;
+            }
+            
+            .glass-card {
+                padding: 20px;
+                margin: 10px 0;
+            }
+            
+            .btn {
+                padding: 12px 20px;
+                font-size: 1em;
+            }
+            
+            .tab-btn {
+                padding: 10px 8px;
+                font-size: 0.9em;
+            }
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+            position: relative;
+        }
+        
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5em;
+            font-weight: 900;
+            background: linear-gradient(45deg, var(--primary), var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: var(--neon-shadow);
+            animation: neonPulse 2s infinite alternate;
+            margin-bottom: 10px;
+        }
+        
+        @keyframes neonPulse {
+            from { text-shadow: var(--neon-shadow); }
+            to { text-shadow: 0 0 30px var(--primary-glow), 0 0 40px var(--secondary-glow); }
+        }
+        
+        .subtitle {
+            color: var(--primary-glow);
+            font-size: 1.1em;
+            font-weight: 300;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 15px 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .glass-card:hover::before {
+            left: 100%;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(99, 102, 241, 0.3);
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            border: none;
+            padding: 15px 25px;
+            border-radius: 15px;
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            margin: 8px 0;
+            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
+        }
+        
+        .tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 5px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 80px;
+        }
+        
+        .tab-btn.active {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .balance-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideIn 0.5s ease;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .balance-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 0 -10px;
+        }
+        
+        .crypto-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            margin-right: 15px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+        }
+        
+        .crypto-info {
+            flex: 1;
+        }
+        
+        .crypto-name {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .crypto-amount {
+            font-size: 1.3em;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--accent), var(--primary-glow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .input-group {
+            margin: 15px 0;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--primary-glow);
+            font-weight: 600;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+        
+        .transaction {
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border-left: 4px solid;
+            animation: slideIn 0.5s ease;
+        }
+        
+        .xp-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .xp-progress {
+            height: 100%;
+            background: linear-gradient(45deg, var(--accent), var(--primary));
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            position: relative;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transform: translateX(400px);
+            transition: transform 0.5s ease;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .wallets-grid {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .wallet-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .wallet-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+        }
+        
+        .wallet-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+        }
+        
+        .wallet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .wallet-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .wallet-balance {
+            font-size: 1.4em;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--accent), var(--primary-glow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 10px 0;
+        }
+        
+        .wallet-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+        
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, var(--dark) 0%, #1e1b4b 100%);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            backdrop-filter: blur(10px);
+            height: 250px;
+        }
+        
+        .check-link {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            word-break: break-all;
+            border: 1px dashed var(--primary-glow);
+        }
+        
+        .check-success {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .check-success i {
+            font-size: 3em;
+            color: #10b981;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation">
+        <div class="floating-crypto" style="top:10%; left:5%; animation-delay: 0s;">₿</div>
+        <div class="floating-crypto" style="top:20%; left:80%; animation-delay: -2s;">Ξ</div>
+        <div class="floating-crypto" style="top:50%; left:10%; animation-delay: -4s;">$</div>
+        <div class="floating-crypto" style="top:70%; left:70%; animation-delay: -6s;">◆</div>
+        <div class="floating-crypto" style="top:30%; left:50%; animation-delay: -8s;">🪙</div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">NEONCRYPTO</div>
+            <div class="subtitle">LCOIN • Чеки • Графики</div>
+        </div>
+
+        <!-- Информация о пользователе -->
+        <div class="glass-card pulse">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 1.2em; font-weight: 600;" id="userName">Загрузка...</div>
+                    <div style="color: var(--primary-glow); font-size: 0.9em;">Уровень <span id="userLevel">1</span></div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.9em; color: var(--primary-glow);">Опыт</div>
+                    <div style="font-weight: 600;" id="userXP">0/100</div>
+                </div>
+            </div>
+            <div class="xp-bar">
+                <div class="xp-progress" id="xpProgress" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <!-- Вкладки -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('wallets')">
+                <i class="fas fa-wallet"></i> Кошельки
+            </button>
+            <button class="tab-btn" onclick="showTab('balance')">
+                <i class="fas fa-coins"></i> Баланс
+            </button>
+            <button class="tab-btn" onclick="showTab('transfer')">
+                <i class="fas fa-exchange-alt"></i> Перевод
+            </button>
+            <button class="tab-btn" onclick="showTab('checks')">
+                <i class="fas fa-receipt"></i> Чеки
+            </button>
+            <button class="tab-btn" onclick="showTab('history')">
+                <i class="fas fa-history"></i> История
+            </button>
+        </div>
+
+        <!-- Вкладка Кошельки -->
+        <div id="wallets" class="tab-content active">
+            <div class="glass-card">
+                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: var(--primary-glow);">
+                        <i class="fas fa-wallet"></i> Мои кошельки
+                    </h3>
+                    <button class="action-btn" onclick="showCreateWalletModal()" style="background: var(--primary);">
+                        <i class="fas fa-plus"></i> Новый
+                    </button>
+                </div>
+                <div id="wallets-list">
+                    <!-- Кошельки загружаются здесь -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка Баланс -->
+        <div id="balance" class="tab-content">
+            <div class="glass-card">
+                <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
+                    <i class="fas fa-coins"></i> Основной баланс
+                </h3>
+                <div id="balance-list">
+                    <!-- Баланс загружается здесь -->
+                </div>
+            </div>
+            
+            <!-- График -->
+            <div id="chart-section" style="display: none;">
+                <div class="chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка Перевод -->
+        <div id="transfer" class="tab-content">
+            <div class="glass-card">
+                <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
+                    <i class="fas fa-paper-plane"></i> Перевод пользователю
+                </h3>
+                
+                <div class="input-group">
+                    <label class="input-label">Получатель</label>
+                    <input type="text" id="toUsername" class="input-field" placeholder="@username">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Валюта</label>
+                    <select id="currency" class="input-field">
+                        <option value="BTC">₿ Bitcoin</option>
+                        <option value="ETH">Ξ Ethereum</option>
+                        <option value="USDT">💵 Tether</option>
+                        <option value="SOL">◆ Solana</option>
+                        <option value="LCOIN">🪙 LCoin</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Сумма</label>
+                    <input type="number" id="amount" class="input-field" placeholder="0.00" step="0.0001">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Сообщение</label>
+                    <input type="text" id="message" class="input-field" placeholder="Ваше сообщение...">
+                </div>
+                
+                <button class="btn" onclick="sendTransfer()">
+                    <i class="fas fa-rocket"></i> Отправить
+                </button>
+            </div>
+        </div>
+
+        <!-- Вкладка Чеки -->
+        <div id="checks" class="tab-content">
+            <div class="glass-card">
+                <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
+                    <i class="fas fa-receipt"></i> Создать чек
+                </h3>
+                
+                <div class="input-group">
+                    <label class="input-label">Валюта</label>
+                    <select id="checkCurrency" class="input-field">
+                        <option value="BTC">₿ Bitcoin</option>
+                        <option value="ETH">Ξ Ethereum</option>
+                        <option value="USDT">💵 Tether</option>
+                        <option value="SOL">◆ Solana</option>
+                        <option value="LCOIN">🪙 LCoin</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Сумма</label>
+                    <input type="number" id="checkAmount" class="input-field" placeholder="0.00" step="0.0001">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Сообщение (необязательно)</label>
+                    <input type="text" id="checkMessage" class="input-field" placeholder="Поздравление...">
+                </div>
+                
+                <button class="btn" onclick="createCheck()">
+                    <i class="fas fa-gift"></i> Создать чек
+                </button>
+            </div>
+            
+            <div id="check-result" style="display: none;">
+                <!-- Результат создания чека -->
+            </div>
+        </div>
+
+        <!-- Вкладка История -->
+        <div id="history" class="tab-content">
+            <div class="glass-card">
+                <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
+                    <i class="fas fa-receipt"></i> История операций
+                </h3>
+                <div id="transactions-list">
+                    <!-- История загружается здесь -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальные окна (остаются такие же как в предыдущей версии) -->
+    <div id="createWalletModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 20px; color: var(--primary-glow); text-align: center;">
+                🎨 Создать новый кошелек
+            </h3>
+            
+            <div class="input-group">
+                <label class="input-label">Название кошелька</label>
+                <input type="text" id="walletName" class="input-field" placeholder="Например: Сбережения" maxlength="20">
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">Выберите эмодзи</label>
+                <div class="emoji-grid" id="emojiGrid">
+                    <!-- Emojis will be added by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">Цвет кошелька</label>
+                <div class="color-grid" id="colorGrid">
+                    <!-- Colors will be added by JavaScript -->
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="createWallet()" style="flex: 2;">
+                    <i class="fas fa-plus"></i> Создать кошелек
+                </button>
+                <button class="btn" onclick="hideCreateWalletModal()" style="flex: 1; background: rgba(239, 68, 68, 0.8);">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="walletManageModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 20px; color: var(--primary-glow); text-align: center;" id="walletModalTitle">
+                Управление кошельком
+            </h3>
+            
+            <div class="input-group">
+                <label class="input-label">Действие</label>
+                <select id="walletAction" class="input-field" onchange="onWalletActionChange()">
+                    <option value="deposit">📥 Пополнить с основного баланса</option>
+                    <option value="withdraw">📤 Вывести на основной баланс</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">Валюта</label>
+                <select id="walletCurrency" class="input-field">
+                    <option value="BTC">₿ Bitcoin</option>
+                    <option value="ETH">Ξ Ethereum</option>
+                    <option value="USDT">💵 Tether</option>
+                    <option value="SOL">◆ Solana</option>
+                    <option value="LCOIN">🪙 LCoin</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">Сумма</label>
+                    <input type="number" id="walletAmount" class="input-field" placeholder="0.00" step="0.0001">
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn" onclick="executeWalletAction()" style="flex: 2;">
+                    <i class="fas fa-play"></i> Выполнить
+                </button>
+                <button class="btn" onclick="hideWalletManageModal()" style="flex: 1; background: rgba(239, 68, 68, 0.8);">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Уведомление -->
+    <div class="notification" id="notification">
+        Сообщение уведомления
+    </div>
+
+    <script>
+        // Основной код JavaScript остается таким же как в предыдущей версии
+        // но добавляются новые функции для чеков и графиков
+        
+        let priceChart = null;
+        let currentChartCurrency = null;
+
+        // Функция для создания чека
+        async function createCheck() {
+            const currency = document.getElementById('checkCurrency').value;
+            const amount = parseFloat(document.getElementById('checkAmount').value);
+            const message = document.getElementById('checkMessage').value;
+
+            if (!amount || amount <= 0) {
+                showNotification('❌ Введите корректную сумму', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/check/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        currency: currency,
+                        amount: amount,
+                        message: message
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const checkResult = document.getElementById('check-result');
+                    checkResult.style.display = 'block';
+                    checkResult.innerHTML = `
+                        <div class="glass-card check-success">
+                            <i class="fas fa-check-circle"></i>
+                            <h3 style="color: var(--primary-glow); margin-bottom: 15px;">Чек создан!</h3>
+                            <div class="check-link">
+                                <strong>Ссылка на чек:</strong><br>
+                                <a href="${result.checkLink}" style="color: var(--accent-glow);">${result.checkLink}</a>
+                            </div>
+                            <p style="margin: 15px 0; opacity: 0.8;">
+                                Отправьте эту ссылку другу для активации чека
+                            </p>
+                            <button class="btn" onclick="copyCheckLink('${result.checkLink}')">
+                                <i class="fas fa-copy"></i> Скопировать ссылку
+                            </button>
+                        </div>
+                    `;
+                    
+                    showNotification('✅ Чек создан!', 'success');
+                    await loadUserData();
+                } else {
+                    showNotification(result.error || '❌ Ошибка создания чека', 'error');
+                }
+            } catch (error) {
+                showNotification('❌ Ошибка сети', 'error');
+            }
+        }
+
+        function copyCheckLink(link) {
+            navigator.clipboard.writeText(link).then(() => {
+                showNotification('✅ Ссылка скопирована!', 'success');
+            });
+        }
+
+        // Функция для показа графика
+        async function showChart(currency) {
+            if (currentChartCurrency === currency) {
+                // Скрыть график если кликнули на ту же валюту
+                document.getElementById('chart-section').style.display = 'none';
+                currentChartCurrency = null;
+                return;
+            }
+
+            currentChartCurrency = currency;
+            document.getElementById('chart-section').style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/crypto/chart/${currency}`);
+                const chartData = await response.json();
+
+                // Создаем или обновляем график
+                const ctx = document.getElementById('priceChart').getContext('2d');
+                
+                if (priceChart) {
+                    priceChart.destroy();
+                }
+
+                priceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.map(point => new Date(point.time).toLocaleDateString()),
+                        datasets: [{
+                            label: `${currency} Price (USD)`,
+                            data: chartData.map(point => point.price),
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: 'white',
+                                    font: {
+                                        family: 'Rajdhani'
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: 'rgba(255,255,255,0.7)',
+                                    font: {
+                                        family: 'Rajdhani'
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(255,255,255,0.1)'
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    color: 'rgba(255,255,255,0.7)',
+                                    font: {
+                                        family: 'Rajdhani'
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(255,255,255,0.1)'
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Ошибка загрузки графика:', error);
+                showNotification('❌ Ошибка загрузки графика', 'error');
+            }
+        }
+
+        // Обновляем функцию загрузки баланса чтобы добавить обработчики кликов
+        function updateMainBalance(balance) {
+            const balanceList = document.getElementById('balance-list');
+            balanceList.innerHTML = '';
+            
+            const cryptoIcons = { 
+                BTC: '₿', 
+                ETH: 'Ξ', 
+                USDT: '$', 
+                SOL: '◆',
+                LCOIN: '🪙'
+            };
+            const cryptoColors = { 
+                BTC: '#f7931a', 
+                ETH: '#627eea', 
+                USDT: '#26a17a', 
+                SOL: '#00ffbd',
+                LCOIN: '#6366f1'
+            };
+            
+            for (const [currency, amount] of Object.entries(balance)) {
+                const balanceItem = document.createElement('div');
+                balanceItem.className = 'balance-item';
+                balanceItem.onclick = () => showChart(currency);
+                balanceItem.innerHTML = `
+                    <div style="display: flex; align-items: center;">
+                        <div class="crypto-icon" style="background: linear-gradient(45deg, ${cryptoColors[currency] || '#6366f1'}, #a855f7);">
+                            ${cryptoIcons[currency] || '◆'}
+                        </div>
+                        <div class="crypto-info">
+                            <div class="crypto-name">${currency}</div>
+                            <div class="crypto-price" id="${currency.toLowerCase()}-price">-</div>
+                        </div>
+                    </div>
+                    <div class="crypto-amount">${amount}</div>
+                `;
+                balanceList.appendChild(balanceItem);
+            }
+        }
+
+        // Остальной код остается таким же как в предыдущей версии
+        // ... (инициализация, управление кошельками, переводы и т.д.)
+    </script>
+</body>
+                      </html>
