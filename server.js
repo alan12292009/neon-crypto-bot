@@ -55,6 +55,11 @@ function initUser(userId, userData) {
         createdAt: new Date()
       }
     ];
+    
+    console.log('👤 New user initialized:', { 
+      userId, 
+      username: users[userId].username 
+    });
   }
   return users[userId];
 }
@@ -90,7 +95,7 @@ bot.onText(/\/start/, (msg) => {
     parse_mode: 'Markdown',
     reply_markup: {
       inline_keyboard: [
-        [{ text: '📱 Открыть веб-приложение', web_app: { url: `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'your-app.onrender.com'}` } }],
+        [{ text: '📱 Открыть веб-приложение', web_app: { url: `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'licryptobot.onrender.com'}` } }],
         [{ text: '💰 Баланс', callback_data: 'balance' }, { text: '🔄 Перевод', callback_data: 'transfer' }]
       ]
     }
@@ -156,50 +161,93 @@ app.get('/api/user/:userId', (req, res) => {
 app.post('/api/transfer', async (req, res) => {
   const { fromUserId, toUsername, currency, amount, message } = req.body;
 
+  console.log('🔧 Transfer attempt:', { fromUserId, toUsername, currency, amount });
+
   try {
-    const toUser = Object.values(users).find(user => 
-      user.username === toUsername.replace('@', '')
+    // Убираем @ из username если есть
+    const cleanUsername = toUsername.replace('@', '').trim();
+    
+    // Ищем получателя по username
+    const toUserEntry = Object.entries(users).find(([userId, user]) => 
+      user.username && user.username.toLowerCase() === cleanUsername.toLowerCase()
     );
 
-    if (!toUser) {
+    if (!toUserEntry) {
+      console.log('❌ User not found:', cleanUsername);
       return res.status(400).json({ error: '👤 Пользователь не найден' });
     }
 
+    const [toUserId, toUser] = toUserEntry;
     const fromUser = users[fromUserId];
-    
-    if (fromUser.balance[currency] < amount) {
+
+    if (!fromUser) {
+      console.log('❌ From user not found:', fromUserId);
+      return res.status(400).json({ error: '❌ Отправитель не найден' });
+    }
+
+    // Проверяем баланс
+    if (!fromUser.balance[currency] || fromUser.balance[currency] < amount) {
+      console.log('❌ Insufficient funds:', { 
+        has: fromUser.balance[currency], 
+        needed: amount 
+      });
       return res.status(400).json({ error: '❌ Недостаточно средств' });
     }
 
-    fromUser.balance[currency] -= amount;
-    toUser.balance[currency] += amount;
+    // Выполняем перевод
+    fromUser.balance[currency] = parseFloat((fromUser.balance[currency] - amount).toFixed(8));
+    toUser.balance[currency] = parseFloat((toUser.balance[currency] + amount).toFixed(8));
     fromUser.xp += 10;
 
+    // Создаем транзакцию
     const transaction = {
       id: Date.now(),
       type: 'user_transfer',
       from: fromUserId,
-      fromName: fromUser.first_name,
-      to: toUser.id,
-      toName: toUser.first_name,
+      fromName: fromUser.first_name || fromUser.username || 'Unknown',
+      to: toUserId,
+      toName: toUser.first_name || toUser.username || 'Unknown',
       currency,
-      amount,
-      message,
+      amount: parseFloat(amount),
+      message: message || '',
       timestamp: new Date()
     };
     transactions.push(transaction);
 
+    console.log('✅ Transfer successful:', {
+      from: fromUser.username,
+      to: toUser.username,
+      currency,
+      amount,
+      newBalanceFrom: fromUser.balance[currency],
+      newBalanceTo: toUser.balance[currency]
+    });
+
     // Уведомляем пользователей через бота
     try {
-      bot.sendMessage(fromUserId, `✅ Перевод выполнен!\n${amount} ${currency} -> @${toUsername}\n+10 XP`);
-      bot.sendMessage(toUser.id, `💸 Вам перевели ${amount} ${currency} от @${fromUser.username || fromUser.first_name}`);
+      await bot.sendMessage(
+        fromUserId, 
+        `✅ Перевод выполнен!\n${amount} ${currency} → @${toUser.username}\nНовый баланс: ${fromUser.balance[currency]} ${currency}\n+10 XP 🎉`
+      );
+      
+      await bot.sendMessage(
+        toUserId, 
+        `💸 Вам перевели ${amount} ${currency} от @${fromUser.username || fromUser.first_name}\nТекущий баланс: ${toUser.balance[currency]} ${currency}`
+      );
     } catch (botError) {
-      console.log('Bot notification failed:', botError);
+      console.log('⚠️ Bot notification failed:', botError.message);
     }
 
-    res.json({ success: true, newBalance: fromUser.balance, transaction, xp: fromUser.xp });
+    res.json({ 
+      success: true, 
+      newBalance: fromUser.balance, 
+      transaction, 
+      xp: fromUser.xp 
+    });
+
   } catch (error) {
-    res.status(500).json({ error: '❌ Ошибка перевода' });
+    console.log('❌ Transfer error:', error);
+    res.status(500).json({ error: '❌ Ошибка перевода: ' + error.message });
   }
 });
 
