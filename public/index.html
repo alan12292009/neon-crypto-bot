@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Crypto Bot</title>
+    <title>Li Crypto Bot</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,6 +21,9 @@
             --darker: #070714;
             --neon-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
             --neon-glow: 0 0 30px rgba(99, 102, 241, 0.8);
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
         }
         
         * {
@@ -75,6 +78,22 @@
             font-weight: 300;
         }
         
+        .admin-badge {
+            background: linear-gradient(45deg, #f59e0b, #d97706);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-left: 10px;
+            animation: glow 2s infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { box-shadow: 0 0 10px #f59e0b; }
+            to { box-shadow: 0 0 20px #f59e0b, 0 0 30px #d97706; }
+        }
+        
         .glass-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(20px);
@@ -107,6 +126,26 @@
         .btn:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-admin {
+            background: linear-gradient(45deg, #f59e0b, #d97706);
+            box-shadow: 0 5px 15px rgba(245, 158, 11, 0.4);
+        }
+        
+        .btn-admin:hover {
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.6);
         }
         
         .tabs {
@@ -159,7 +198,6 @@
             align-items: center;
             padding: 15px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            cursor: pointer;
         }
         
         .input-group {
@@ -196,126 +234,456 @@
             transform: translateX(400px);
             transition: transform 0.5s ease;
             z-index: 1000;
+            max-width: 300px;
         }
         
         .notification.show {
             transform: translateX(0);
+        }
+        
+        .notification.error {
+            background: linear-gradient(45deg, var(--error), #dc2626);
+        }
+        
+        .notification.success {
+            background: linear-gradient(45deg, var(--success), #059669);
+        }
+        
+        .notification.warning {
+            background: linear-gradient(45deg, var(--warning), #d97706);
+        }
+        
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .check-url {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            word-break: break-all;
+            font-size: 14px;
+        }
+        
+        .copy-btn {
+            background: var(--accent);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .rub-conversion {
+            color: var(--accent-glow);
+            font-size: 0.9em;
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-buttons .btn {
+            flex: 1;
+            margin: 0;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .transaction-type {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+
+        .transaction-outgoing {
+            color: var(--error);
+        }
+
+        .transaction-incoming {
+            color: var(--success);
+        }
+
+        .transaction-details {
+            flex: 1;
+        }
+
+        .transaction-amount {
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+
+        .admin-section {
+            border-left: 3px solid #f59e0b;
+            padding-left: 15px;
+            margin: 20px 0;
+        }
+
+        .admin-section h4 {
+            color: #f59e0b;
+            margin-bottom: 10px;
+        }
+
+        .user-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .status-active {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-blocked {
+            background: var(--error);
+            color: white;
+        }
+
+        .status-admin {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .blocked-message {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid var(--error);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .blocked-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .transfer-status {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid var(--primary);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .countdown {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--accent-glow);
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">NEONCRYPTO</div>
-            <div class="subtitle">LCOIN • Чеки • Графики</div>
+            <div class="logo">LiCRYPTO</div>
+            <div class="subtitle">LCOIN • Чеки • Графики <span id="adminBadge" class="admin-badge" style="display: none;">ADMIN</span></div>
         </div>
 
-        <div class="glass-card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="font-size: 1.2em; font-weight: 600;" id="userName">Трейдер</div>
-                    <div style="color: var(--primary-glow); font-size: 0.9em;">Уровень <span id="userLevel">1</span></div>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 0.9em; color: var(--primary-glow);">Баланс</div>
-                    <div style="font-weight: 600;" id="totalBalance">-</div>
-                </div>
-            </div>
+        <!-- Блокировка пользователя -->
+        <div id="blockedMessage" class="blocked-message" style="display: none;">
+            <div class="blocked-icon">🚫</div>
+            <h3>Доступ ограничен</h3>
+            <p id="blockReason"></p>
+            <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                Для разблокировки обратитесь к администратору
+            </p>
         </div>
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="showTab('balance')">
-                <i class="fas fa-coins"></i> Баланс
-            </button>
-            <button class="tab-btn" onclick="showTab('transfer')">
-                <i class="fas fa-exchange-alt"></i> Перевод
-            </button>
-            <button class="tab-btn" onclick="showTab('checks')">
-                <i class="fas fa-receipt"></i> Чеки
-            </button>
-        </div>
-
-        <div id="balance" class="tab-content active">
+        <div id="mainContent">
             <div class="glass-card">
-                <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
-                    <i class="fas fa-coins"></i> Ваш баланс
-                </h3>
-                <div id="balance-list">
-                    <div class="balance-item">
-                        <div>₿ Bitcoin (BTC)</div>
-                        <div style="font-weight: 700; color: var(--accent);">0.1</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 1.2em; font-weight: 600;" id="userName">Трейдер</div>
+                        <div style="color: var(--primary-glow); font-size: 0.9em;">
+                            Уровень <span id="userLevel">1</span>
+                            <span id="userStatus" class="user-status status-active">АКТИВЕН</span>
+                        </div>
                     </div>
-                    <div class="balance-item">
-                        <div>Ξ Ethereum (ETH)</div>
-                        <div style="font-weight: 700; color: var(--accent);">1.5</div>
-                    </div>
-                    <div class="balance-item">
-                        <div>💵 Tether (USDT)</div>
-                        <div style="font-weight: 700; color: var(--accent);">1000</div>
-                    </div>
-                    <div class="balance-item">
-                        <div>🪙 LCoin (LCOIN)</div>
-                        <div style="font-weight: 700; color: var(--accent);">10000</div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.9em; color: var(--primary-glow);">Баланс</div>
+                        <div style="font-weight: 600;" id="totalBalance">-</div>
                     </div>
                 </div>
             </div>
-            
-            <button class="btn" onclick="showNotification('Баланс обновлен! 🔄', 'success')">
-                <i class="fas fa-sync-alt"></i> Обновить
-            </button>
-        </div>
 
-        <div id="transfer" class="tab-content">
-            <div class="glass-card">
-                <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
-                    <i class="fas fa-paper-plane"></i> Перевод
-                </h3>
-                
-                <div class="input-group">
-                    <label class="input-label">Получатель (@username)</label>
-                    <input type="text" id="toUsername" class="input-field" placeholder="username">
-                </div>
-                
-                <div class="input-group">
-                    <label class="input-label">Валюта</label>
-                    <select id="currency" class="input-field">
-                        <option value="BTC">₿ Bitcoin</option>
-                        <option value="ETH">Ξ Ethereum</option>
-                        <option value="USDT">💵 Tether</option>
-                        <option value="LCOIN">🪙 LCoin</option>
-                    </select>
-                </div>
-                
-                <div class="input-group">
-                    <label class="input-label">Сумма</label>
-                    <input type="number" id="amount" class="input-field" placeholder="0.00" step="0.0001">
-                </div>
-                
-                <button class="btn" onclick="showNotification('Перевод выполнен! ✅', 'success')">
-                    <i class="fas fa-rocket"></i> Отправить
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('balance')">
+                    <i class="fas fa-coins"></i> Баланс
+                </button>
+                <button class="tab-btn" onclick="showTab('transfer')">
+                    <i class="fas fa-exchange-alt"></i> Перевод
+                </button>
+                <button class="tab-btn" onclick="showTab('checks')">
+                    <i class="fas fa-receipt"></i> Чеки
+                </button>
+                <button class="tab-btn" onclick="showTab('history')">
+                    <i class="fas fa-history"></i> История
+                </button>
+                <button class="tab-btn" id="adminTab" onclick="showTab('admin')" style="display: none;">
+                    <i class="fas fa-crown"></i> Админ
                 </button>
             </div>
-        </div>
 
-        <div id="checks" class="tab-content">
-            <div class="glass-card">
-                <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
-                    <i class="fas fa-gift"></i> Создать чек
-                </h3>
-                
-                <div class="input-group">
-                    <label class="input-label">Сумма LCoin</label>
-                    <input type="number" class="input-field" placeholder="100" value="100">
+            <!-- Вкладка Баланс -->
+            <div id="balance" class="tab-content active">
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
+                        <i class="fas fa-coins"></i> Ваш баланс
+                    </h3>
+                    <div id="balance-list">
+                        <!-- Баланс будет загружен динамически -->
+                    </div>
                 </div>
                 
-                <div class="input-group">
-                    <label class="input-label">Сообщение</label>
-                    <input type="text" class="input-field" placeholder="Поздравляю!">
-                </div>
-                
-                <button class="btn" onclick="showNotification('Чек создан! 🎁', 'success')">
-                    <i class="fas fa-gift"></i> Создать чек
+                <button class="btn" onclick="loadUserData()">
+                    <i class="fas fa-sync-alt"></i> Обновить баланс
                 </button>
+            </div>
+
+            <!-- Вкладка Перевод -->
+            <div id="transfer" class="tab-content">
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
+                        <i class="fas fa-paper-plane"></i> Перевод
+                    </h3>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Получатель (@username)</label>
+                        <input type="text" id="toUsername" class="input-field" placeholder="username" oninput="updateTransferPreview()">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Валюта</label>
+                        <select id="currency" class="input-field" onchange="updateTransferPreview()">
+                            <option value="USDT">💵 Tether (USDT)</option>
+                            <option value="BTC">₿ Bitcoin (BTC)</option>
+                            <option value="ETH">Ξ Ethereum (ETH)</option>
+                            <option value="LCOIN">🪙 LCoin (LCOIN)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Сумма</label>
+                        <input type="number" id="amount" class="input-field" placeholder="0.00" step="0.0001" oninput="updateTransferPreview()">
+                        <div class="rub-conversion" id="rubConversion">~ 0 RUB</div>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Комментарий к переводу (необязательно)</label>
+                        <input type="text" id="transferMessage" class="input-field" placeholder="За перевод..." oninput="updateTransferPreview()">
+                    </div>
+
+                    <div id="transferPreview" style="display: none; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin: 15px 0;">
+                        <h4 style="color: var(--primary-glow); margin-bottom: 10px;">📋 Предпросмотр перевода:</h4>
+                        <div id="previewDetails"></div>
+                    </div>
+                    
+                    <button class="btn" onclick="showTransferConfirmation()" id="transferBtn">
+                        <i class="fas fa-rocket"></i> Отправить перевод
+                    </button>
+                </div>
+
+                <!-- Статус активного перевода -->
+                <div id="activeTransfer" class="transfer-status" style="display: none;">
+                    <h4 style="color: var(--primary-glow); margin-bottom: 10px;">⏳ Перевод в обработке</h4>
+                    <div id="transferDetails"></div>
+                    <div class="countdown" id="countdown">30 сек</div>
+                    <div style="font-size: 0.9em; opacity: 0.8;">
+                        Средства будут зачислены автоматически
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка Чеки -->
+            <div id="checks" class="tab-content">
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
+                        <i class="fas fa-gift"></i> Создать чек
+                    </h3>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Сумма</label>
+                        <input type="number" id="checkAmount" class="input-field" placeholder="100" value="100" step="0.0001" oninput="updateCheckPreview()">
+                        <div class="rub-conversion" id="checkRubConversion">~ 0 RUB</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Валюта</label>
+                        <select id="checkCurrency" class="input-field" onchange="updateCheckPreview()">
+                            <option value="USDT">💵 Tether (USDT)</option>
+                            <option value="LCOIN">🪙 LCoin (LCOIN)</option>
+                            <option value="BTC">₿ Bitcoin (BTC)</option>
+                            <option value="ETH">Ξ Ethereum (ETH)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Сообщение (необязательно)</label>
+                        <input type="text" id="checkMessage" class="input-field" placeholder="Поздравляю!">
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Пароль для чека (необязательно)</label>
+                        <input type="password" id="checkPassword" class="input-field" placeholder="Оставьте пустым для чека без пароля">
+                        <div style="font-size: 0.8em; color: var(--accent-glow); margin-top: 5px;">
+                            🔒 Только зная пароль можно активировать чек
+                        </div>
+                    </div>
+
+                    <div id="checkPreview" style="display: none; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin: 15px 0;">
+                        <h4 style="color: var(--primary-glow); margin-bottom: 10px;">🎁 Предпросмотр чека:</h4>
+                        <div id="checkPreviewDetails"></div>
+                    </div>
+                    
+                    <button class="btn" onclick="createCheck()" id="createCheckBtn">
+                        <i class="fas fa-gift"></i> Создать чек
+                    </button>
+                    
+                    <div id="checkResult" style="display: none; margin-top: 20px;">
+                        <div class="check-url">
+                            <strong>Ссылка на чек:</strong>
+                            <div id="checkUrl" style="margin: 10px 0;"></div>
+                            <button class="copy-btn" onclick="copyCheckUrl()">
+                                <i class="fas fa-copy"></i> Копировать
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка История -->
+            <div id="history" class="tab-content">
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 20px; color: var(--primary-glow);">
+                        <i class="fas fa-history"></i> История операций
+                    </h3>
+                    <div id="transactionsList">
+                        <!-- История будет загружена динамически -->
+                    </div>
+                </div>
+                
+                <button class="btn" onclick="loadUserData()">
+                    <i class="fas fa-sync-alt"></i> Обновить историю
+                </button>
+            </div>
+
+            <!-- Вкладка Админ -->
+            <div id="admin" class="tab-content">
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 20px; color: #f59e0b;">
+                        <i class="fas fa-crown"></i> Панель администратора
+                    </h3>
+
+                    <div class="admin-section">
+                        <h4>💰 Выдать криптовалюту</h4>
+                        <div class="input-group">
+                            <label class="input-label">Пользователь (@username)</label>
+                            <input type="text" id="adminTargetUser" class="input-field" placeholder="username">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Валюта</label>
+                            <select id="adminCurrency" class="input-field">
+                                <option value="USDT">💵 Tether (USDT)</option>
+                                <option value="BTC">₿ Bitcoin (BTC)</option>
+                                <option value="ETH">Ξ Ethereum (ETH)</option>
+                                <option value="LCOIN">🪙 LCoin (LCOIN)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Сумма</label>
+                            <input type="number" id="adminAmount" class="input-field" placeholder="100" step="0.0001">
+                        </div>
+                        <button class="btn btn-admin" onclick="adminAddCrypto()">
+                            <i class="fas fa-gift"></i> Выдать крипту
+                        </button>
+                    </div>
+
+                    <div class="admin-section">
+                        <h4>🔒 Управление блокировками</h4>
+                        <div class="input-group">
+                            <label class="input-label">Пользователь (@username)</label>
+                            <input type="text" id="blockTargetUser" class="input-field" placeholder="username">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Причина блокировки</label>
+                            <input type="text" id="blockReason" class="input-field" placeholder="Нарушение правил">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-admin" onclick="adminBlockUser()" style="flex: 1;">
+                                <i class="fas fa-ban"></i> Заблокировать
+                            </button>
+                            <button class="btn btn-secondary" onclick="adminUnblockUser()" style="flex: 1;">
+                                <i class="fas fa-check"></i> Разблокировать
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="admin-section">
+                        <h4>👥 Заблокированные пользователи</h4>
+                        <div id="blockedUsersList">
+                            <!-- Список будет загружен динамически -->
+                        </div>
+                        <button class="btn btn-secondary" onclick="loadBlockedUsers()">
+                            <i class="fas fa-sync-alt"></i> Обновить список
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения перевода -->
+    <div id="transferModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <h3 style="color: var(--primary-glow); margin-bottom: 15px;">🤔 Подтвердите перевод</h3>
+            <div id="modalTransferDetails"></div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="hideTransferModal()">Отмена</button>
+                <button class="btn" onclick="performTransfer()">Подтвердить</button>
             </div>
         </div>
     </div>
@@ -325,7 +693,468 @@
     </div>
 
     <script>
-        // Простой JavaScript для работы интерфейса
+        let currentUser = null;
+        let tg = null;
+        let exchangeRates = {};
+        let activeTransferInterval = null;
+
+        // Загрузка курсов валют
+        async function loadExchangeRates() {
+            try {
+                const response = await fetch('/api/crypto');
+                const data = await response.json();
+                exchangeRates = data;
+                updateTransferPreview();
+                updateCheckPreview();
+            } catch (error) {
+                console.error('Error loading exchange rates:', error);
+            }
+        }
+
+        // Обновление предпросмотра перевода
+        function updateTransferPreview() {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const currency = document.getElementById('currency').value;
+            const toUsername = document.getElementById('toUsername').value.trim();
+            const message = document.getElementById('transferMessage').value.trim();
+            
+            const preview = document.getElementById('transferPreview');
+            const details = document.getElementById('previewDetails');
+            const rubConversion = document.getElementById('rubConversion');
+            
+            if (amount && amount > 0 && toUsername) {
+                // Конвертация в рубли
+                let rubAmount = calculateRubAmount(amount, currency);
+                rubConversion.textContent = `~ ${rubAmount.toFixed(2)} RUB`;
+                
+                details.innerHTML = `
+                    <div>👤 Кому: @${toUsername}</div>
+                    <div>💰 Сумма: ${amount} ${currency}</div>
+                    <div>💸 В рублях: ~ ${rubAmount.toFixed(2)} RUB</div>
+                    ${message ? `<div>💬 Комментарий: "${message}"</div>` : ''}
+                `;
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+                rubConversion.textContent = '~ 0 RUB';
+            }
+        }
+
+        // Обновление предпросмотра чека
+        function updateCheckPreview() {
+            const amount = parseFloat(document.getElementById('checkAmount').value);
+            const currency = document.getElementById('checkCurrency').value;
+            
+            const preview = document.getElementById('checkPreview');
+            const details = document.getElementById('checkPreviewDetails');
+            const rubConversion = document.getElementById('checkRubConversion');
+            
+            if (amount && amount > 0) {
+                // Конвертация в рубли
+                let rubAmount = calculateRubAmount(amount, currency);
+                rubConversion.textContent = `~ ${rubAmount.toFixed(2)} RUB`;
+                
+                details.innerHTML = `
+                    <div>💰 Сумма: ${amount} ${currency}</div>
+                    <div>💸 В рублях: ~ ${rubAmount.toFixed(2)} RUB</div>
+                `;
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+                rubConversion.textContent = '~ 0 RUB';
+            }
+        }
+
+        // Расчет суммы в рублях
+        function calculateRubAmount(amount, currency) {
+            let rubAmount = 0;
+            if (currency === 'USDT' && exchangeRates.tether) {
+                rubAmount = amount * exchangeRates.tether.rub;
+            } else if (currency === 'BTC' && exchangeRates.bitcoin) {
+                rubAmount = amount * exchangeRates.bitcoin.rub;
+            } else if (currency === 'ETH' && exchangeRates.ethereum) {
+                rubAmount = amount * exchangeRates.ethereum.rub;
+            } else if (currency === 'LCOIN' && exchangeRates.lcoin) {
+                rubAmount = amount * exchangeRates.lcoin.rub;
+            }
+            return rubAmount;
+        }
+
+        // Показать модальное окно подтверждения
+        function showTransferConfirmation() {
+            const toUsername = document.getElementById('toUsername').value.trim();
+            const currency = document.getElementById('currency').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const message = document.getElementById('transferMessage').value;
+
+            if (!toUsername || !amount || amount <= 0) {
+                showNotification('❌ Заполните все поля правильно!', 'error');
+                return;
+            }
+
+            const rubAmount = calculateRubAmount(amount, currency);
+
+            const modal = document.getElementById('transferModal');
+            const modalDetails = document.getElementById('modalTransferDetails');
+            
+            modalDetails.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <div><strong>👤 Получатель:</strong> @${toUsername}</div>
+                    <div><strong>💰 Сумма:</strong> ${amount} ${currency}</div>
+                    <div><strong>💸 В рублях:</strong> ~ ${rubAmount.toFixed(2)} RUB</div>
+                    ${message ? `<div><strong>💬 Комментарий:</strong> "${message}"</div>` : ''}
+                </div>
+                <div style="color: var(--accent-glow); font-size: 0.9em;">
+                    ⏰ Перевод займет 30 секунд<br>
+                    ⚠️ Перевод нельзя отменить после подтверждения
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+        }
+
+        // Скрыть модальное окно
+        function hideTransferModal() {
+            document.getElementById('transferModal').style.display = 'none';
+        }
+
+        // Выполнить перевод
+        async function performTransfer() {
+            const toUsername = document.getElementById('toUsername').value.trim();
+            const currency = document.getElementById('currency').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const message = document.getElementById('transferMessage').value;
+
+            hideTransferModal();
+
+            try {
+                const tg = window.Telegram.WebApp;
+                const fromUserId = tg.initDataUnsafe?.user?.id || tg.initDataUnsafe?.user?.id?.toString();
+
+                if (!fromUserId) {
+                    showNotification('❌ Не удалось определить пользователя', 'error');
+                    return;
+                }
+
+                const transferBtn = document.getElementById('transferBtn');
+                transferBtn.disabled = true;
+                transferBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
+
+                const response = await fetch('/api/transfer/initiate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        fromUserId: fromUserId,
+                        toUsername: toUsername,
+                        currency: currency,
+                        amount: amount,
+                        message: message
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification(`⏳ Перевод ${amount} ${currency} initiated!`, 'success');
+                    // Очищаем поля
+                    document.getElementById('toUsername').value = '';
+                    document.getElementById('amount').value = '';
+                    document.getElementById('transferMessage').value = '';
+                    document.getElementById('transferPreview').style.display = 'none';
+                    
+                    // Показываем статус перевода
+                    showTransferStatus(result.transferId, amount, currency, toUsername);
+                } else {
+                    showNotification(result.error || '❌ Ошибка перевода', 'error');
+                }
+            } catch (error) {
+                console.error('Transfer error:', error);
+                showNotification('❌ Ошибка сети при переводе', 'error');
+            } finally {
+                const transferBtn = document.getElementById('transferBtn');
+                transferBtn.disabled = false;
+                transferBtn.innerHTML = '<i class="fas fa-rocket"></i> Отправить перевод';
+            }
+        }
+
+        // Показать статус активного перевода
+        function showTransferStatus(transferId, amount, currency, toUsername) {
+            const activeTransfer = document.getElementById('activeTransfer');
+            const transferDetails = document.getElementById('transferDetails');
+            const countdown = document.getElementById('countdown');
+            
+            transferDetails.innerHTML = `
+                <div>${amount} ${currency} → @${toUsername}</div>
+            `;
+            
+            activeTransfer.style.display = 'block';
+            
+            // Запускаем отсчет времени
+            let secondsLeft = 30;
+            updateCountdown();
+            
+            activeTransferInterval = setInterval(() => {
+                secondsLeft--;
+                updateCountdown();
+                
+                if (secondsLeft <= 0) {
+                    clearInterval(activeTransferInterval);
+                    activeTransfer.style.display = 'none';
+                    loadUserData(); // Обновляем баланс
+                }
+            }, 1000);
+            
+            function updateCountdown() {
+                countdown.textContent = `${secondsLeft} сек`;
+            }
+        }
+
+        // Создать чек
+        async function createCheck() {
+            const amount = parseFloat(document.getElementById('checkAmount').value);
+            const currency = document.getElementById('checkCurrency').value;
+            const message = document.getElementById('checkMessage').value.trim();
+            const password = document.getElementById('checkPassword').value.trim();
+
+            if (!amount || amount <= 0) {
+                showNotification('❌ Введите корректную сумму', 'error');
+                return;
+            }
+
+            try {
+                const tg = window.Telegram.WebApp;
+                const userId = tg.initDataUnsafe?.user?.id?.toString();
+
+                if (!userId) {
+                    showNotification('❌ Не удалось определить пользователя', 'error');
+                    return;
+                }
+
+                const createCheckBtn = document.getElementById('createCheckBtn');
+                createCheckBtn.disabled = true;
+                createCheckBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Создание...';
+
+                const response = await fetch('/api/checks/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId: userId,
+                        amount: amount,
+                        currency: currency,
+                        message: message,
+                        password: password || null
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification(`✅ Чек на ${amount} ${currency} создан!`, 'success');
+                    
+                    // Показываем ссылку на чек
+                    const checkResult = document.getElementById('checkResult');
+                    const checkUrl = document.getElementById('checkUrl');
+                    checkUrl.innerHTML = `<a href="${result.checkUrl}" target="_blank" style="color: var(--accent-glow);">${result.checkUrl}</a>`;
+                    checkResult.style.display = 'block';
+                    
+                    // Очищаем поля
+                    document.getElementById('checkAmount').value = '';
+                    document.getElementById('checkMessage').value = '';
+                    document.getElementById('checkPassword').value = '';
+                    document.getElementById('checkPreview').style.display = 'none';
+                    
+                    // Обновляем баланс
+                    await loadUserData();
+                } else {
+                    showNotification(result.error || '❌ Ошибка создания чека', 'error');
+                }
+            } catch (error) {
+                console.error('Check creation error:', error);
+                showNotification('❌ Ошибка сети при создании чека', 'error');
+            } finally {
+                const createCheckBtn = document.getElementById('createCheckBtn');
+                createCheckBtn.disabled = false;
+                createCheckBtn.innerHTML = '<i class="fas fa-gift"></i> Создать чек';
+            }
+        }
+
+        // Админ: выдать крипту
+        async function adminAddCrypto() {
+            const targetUsername = document.getElementById('adminTargetUser').value.trim();
+            const currency = document.getElementById('adminCurrency').value;
+            const amount = parseFloat(document.getElementById('adminAmount').value);
+
+            if (!targetUsername || !amount || amount <= 0) {
+                showNotification('❌ Заполните все поля правильно!', 'error');
+                return;
+            }
+
+            try {
+                const tg = window.Telegram.WebApp;
+                const adminUserId = tg.initDataUnsafe?.user?.id?.toString();
+
+                const response = await fetch('/api/admin/add-crypto', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        adminUserId: adminUserId,
+                        targetUsername: targetUsername,
+                        currency: currency,
+                        amount: amount
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    document.getElementById('adminTargetUser').value = '';
+                    document.getElementById('adminAmount').value = '';
+                } else {
+                    showNotification(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Admin add crypto error:', error);
+                showNotification('❌ Ошибка выдачи криптовалюты', 'error');
+            }
+        }
+
+        // Админ: заблокировать пользователя
+        async function adminBlockUser() {
+            const targetUsername = document.getElementById('blockTargetUser').value.trim();
+            const reason = document.getElementById('blockReason').value.trim();
+
+            if (!targetUsername || !reason) {
+                showNotification('❌ Заполните все поля!', 'error');
+                return;
+            }
+
+            try {
+                const tg = window.Telegram.WebApp;
+                const adminUserId = tg.initDataUnsafe?.user?.id?.toString();
+
+                const response = await fetch('/api/admin/block-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        adminUserId: adminUserId,
+                        targetUsername: targetUsername,
+                        reason: reason
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    document.getElementById('blockTargetUser').value = '';
+                    document.getElementById('blockReason').value = '';
+                    loadBlockedUsers();
+                } else {
+                    showNotification(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Admin block user error:', error);
+                showNotification('❌ Ошибка блокировки пользователя', 'error');
+            }
+        }
+
+        // Админ: разблокировать пользователя
+        async function adminUnblockUser() {
+            const targetUsername = document.getElementById('blockTargetUser').value.trim();
+
+            if (!targetUsername) {
+                showNotification('❌ Введите username пользователя!', 'error');
+                return;
+            }
+
+            try {
+                const tg = window.Telegram.WebApp;
+                const adminUserId = tg.initDataUnsafe?.user?.id?.toString();
+
+                const response = await fetch('/api/admin/unblock-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        adminUserId: adminUserId,
+                        targetUsername: targetUsername
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    document.getElementById('blockTargetUser').value = '';
+                    loadBlockedUsers();
+                } else {
+                    showNotification(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Admin unblock user error:', error);
+                showNotification('❌ Ошибка разблокировки пользователя', 'error');
+            }
+        }
+
+        // Загрузить список заблокированных пользователей
+        async function loadBlockedUsers() {
+            try {
+                const tg = window.Telegram.WebApp;
+                const adminUserId = tg.initDataUnsafe?.user?.id?.toString();
+
+                const response = await fetch(`/api/admin/blocked-users?adminUserId=${adminUserId}`);
+                const result = await response.json();
+
+                const blockedList = document.getElementById('blockedUsersList');
+                
+                if (result.success && result.blockedUsers.length > 0) {
+                    blockedList.innerHTML = result.blockedUsers.map(user => `
+                        <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <div><strong>@${user.username}</strong></div>
+                            <div style="font-size: 0.9em; color: var(--accent-glow);">${user.reason}</div>
+                            <div style="font-size: 0.8em; opacity: 0.7;">Заблокирован: ${new Date(user.blockedAt).toLocaleDateString('ru-RU')}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    blockedList.innerHTML = '<div style="text-align: center; padding: 20px; opacity: 0.7;">Нет заблокированных пользователей</div>';
+                }
+            } catch (error) {
+                console.error('Load blocked users error:', error);
+            }
+        }
+
+        // Копировать ссылку на чек
+        function copyCheckUrl() {
+            const checkUrl = document.getElementById('checkUrl').textContent;
+            navigator.clipboard.writeText(checkUrl).then(() => {
+                showNotification('✅ Ссылка скопирована в буфер!', 'success');
+            }).catch(() => {
+                showNotification('❌ Ошибка копирования', 'error');
+            });
+        }
+
+        // Показать уведомление
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification show ${type}`;
+            
+            setTimeout(() => {
+                notification.className = 'notification';
+            }, 3000);
+        }
+
+        // Переключение вкладок
         function showTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
@@ -338,25 +1167,149 @@
             event.target.classList.add('active');
         }
 
-        function showNotification(message, type = 'info') {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.className = 'notification show';
+        // Загрузка данных пользователя
+        async function loadUserData() {
+            try {
+                const tg = window.Telegram.WebApp;
+                const userId = tg.initDataUnsafe?.user?.id?.toString();
+
+                if (!userId) {
+                    showNotification('❌ Не удалось определить пользователя', 'error');
+                    return;
+                }
+
+                const response = await fetch(`/api/user/${userId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Ошибка загрузки данных');
+                }
+
+                const data = await response.json();
+                
+                // Проверка на блокировку
+                if (data.error === 'USER_BLOCKED') {
+                    showBlockedMessage(data.blockInfo);
+                    return;
+                }
+
+                currentUser = data.user;
+                updateUserInterface(data.user, data.transactions);
+                
+                // Показываем админ панель если пользователь админ
+                if (currentUser.isAdmin) {
+                    document.getElementById('adminTab').style.display = 'block';
+                    document.getElementById('adminBadge').style.display = 'inline-block';
+                    loadBlockedUsers();
+                }
+
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                showNotification('❌ Ошибка загрузки данных', 'error');
+            }
+        }
+
+        // Показать сообщение о блокировке
+        function showBlockedMessage(blockInfo) {
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('blockedMessage').style.display = 'block';
+            document.getElementById('blockReason').textContent = blockInfo.reason;
+        }
+
+        // Обновление интерфейса пользователя
+        function updateUserInterface(user, transactions = []) {
+            // Обновляем имя пользователя
+            document.getElementById('userName').textContent = user.first_name || user.username || 'Трейдер';
+            document.getElementById('userLevel').textContent = user.level;
             
-            setTimeout(() => {
-                notification.className = 'notification';
-            }, 3000);
+            // Обновляем статус
+            const userStatus = document.getElementById('userStatus');
+            userStatus.textContent = user.isAdmin ? 'АДМИН' : 'АКТИВЕН';
+            userStatus.className = `user-status ${user.isAdmin ? 'status-admin' : 'status-active'}`;
+            
+            // Обновляем общий баланс
+            const total = Object.values(user.balance).reduce((sum, val) => sum + val, 0);
+            document.getElementById('totalBalance').textContent = total.toFixed(2) + ' USD';
+            
+            // Обновляем список баланса
+            const balanceList = document.getElementById('balance-list');
+            balanceList.innerHTML = '';
+            
+            const currencies = [
+                { key: 'BTC', name: 'Bitcoin', symbol: '₿' },
+                { key: 'ETH', name: 'Ethereum', symbol: 'Ξ' },
+                { key: 'USDT', name: 'Tether', symbol: '💵' },
+                { key: 'LCOIN', name: 'LCoin', symbol: '🪙' }
+            ];
+            
+            currencies.forEach(currency => {
+                const balanceItem = document.createElement('div');
+                balanceItem.className = 'balance-item';
+                balanceItem.innerHTML = `
+                    <div>${currency.symbol} ${currency.name} (${currency.key})</div>
+                    <div style="font-weight: 700; color: var(--accent);">${user.balance[currency.key]}</div>
+                `;
+                balanceList.appendChild(balanceItem);
+            });
+            
+            // Обновляем историю операций
+            updateTransactionsList(transactions);
+        }
+
+        // Обновление списка транзакций
+        function updateTransactionsList(transactions) {
+            const transactionsList = document.getElementById('transactionsList');
+            
+            if (transactions.length === 0) {
+                transactionsList.innerHTML = '<div style="text-align: center; padding: 40px; opacity: 0.7;">Операций пока нет</div>';
+                return;
+            }
+            
+            transactionsList.innerHTML = transactions.map(transaction => `
+                <div class="transaction-item">
+                    <div class="transaction-type ${transaction.type === 'outgoing' ? 'transaction-outgoing' : 'transaction-incoming'}">
+                        ${transaction.type === 'outgoing' ? '📤' : '📥'}
+                    </div>
+                    <div class="transaction-details">
+                        <div style="font-weight: 600;">${transaction.amount} ${transaction.currency}</div>
+                        <div style="font-size: 0.9em; opacity: 0.8;">
+                            ${transaction.type === 'outgoing' ? '→' : '←'} ${transaction.counterparty}
+                        </div>
+                        ${transaction.message ? `<div style="font-size: 0.8em; color: var(--accent-glow);">"${transaction.message}"</div>` : ''}
+                        <div style="font-size: 0.8em; opacity: 0.6;">
+                            ${new Date(transaction.timestamp).toLocaleDateString('ru-RU')} ${new Date(transaction.timestamp).toLocaleTimeString('ru-RU')}
+                        </div>
+                    </div>
+                    <div class="transaction-amount ${transaction.type === 'outgoing' ? 'transaction-outgoing' : 'transaction-incoming'}">
+                        ${transaction.type === 'outgoing' ? '-' : '+'}${transaction.amount}
+                    </div>
+                </div>
+            `).join('');
         }
 
         // Инициализация Telegram Web App
-        let tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.ready();
+        function initTelegramApp() {
+            tg = window.Telegram.WebApp;
+            tg.expand();
+            tg.ready();
 
-        console.log('NeonCrypto Bot loaded successfully!');
-        
-        // Показываем уведомление о загрузке
-        showNotification('Бот загружен! 🚀', 'success');
+            console.log('Telegram Web App initialized:', tg.initDataUnsafe);
+            
+            // Загружаем данные пользователя после инициализации
+            setTimeout(() => {
+                loadUserData();
+                loadExchangeRates();
+            }, 1000);
+
+            // Обновляем курсы каждые 30 секунд
+            setInterval(loadExchangeRates, 30000);
+
+            showNotification('LiCrypto Bot загружен! 🚀', 'success');
+        }
+
+        // Запускаем инициализацию когда страница загружена
+        document.addEventListener('DOMContentLoaded', function() {
+            initTelegramApp();
+        });
     </script>
 </body>
 </html>
