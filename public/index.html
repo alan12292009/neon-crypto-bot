@@ -6,7 +6,6 @@
     <title>Li Crypto Bot</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
         
@@ -253,11 +252,6 @@
             background: linear-gradient(45deg, var(--warning), #d97706);
         }
         
-        .loading {
-            opacity: 0.7;
-            pointer-events: none;
-        }
-
         .check-url {
             background: rgba(255,255,255,0.1);
             padding: 15px;
@@ -723,7 +717,6 @@
             const rubConversion = document.getElementById('rubConversion');
             
             if (amount && amount > 0 && toUsername) {
-                // Конвертация в рубли
                 let rubAmount = calculateRubAmount(amount, currency);
                 rubConversion.textContent = `~ ${rubAmount.toFixed(2)} RUB`;
                 
@@ -750,7 +743,6 @@
             const rubConversion = document.getElementById('checkRubConversion');
             
             if (amount && amount > 0) {
-                // Конвертация в рубли
                 let rubAmount = calculateRubAmount(amount, currency);
                 rubConversion.textContent = `~ ${rubAmount.toFixed(2)} RUB`;
                 
@@ -829,7 +821,7 @@
 
             try {
                 const tg = window.Telegram.WebApp;
-                const fromUserId = tg.initDataUnsafe?.user?.id || tg.initDataUnsafe?.user?.id?.toString();
+                const fromUserId = tg.initDataUnsafe?.user?.id?.toString();
 
                 if (!fromUserId) {
                     showNotification('❌ Не удалось определить пользователя', 'error');
@@ -858,13 +850,11 @@
 
                 if (result.success) {
                     showNotification(`⏳ Перевод ${amount} ${currency} initiated!`, 'success');
-                    // Очищаем поля
                     document.getElementById('toUsername').value = '';
                     document.getElementById('amount').value = '';
                     document.getElementById('transferMessage').value = '';
                     document.getElementById('transferPreview').style.display = 'none';
                     
-                    // Показываем статус перевода
                     showTransferStatus(result.transferId, amount, currency, toUsername);
                 } else {
                     showNotification(result.error || '❌ Ошибка перевода', 'error');
@@ -891,7 +881,6 @@
             
             activeTransfer.style.display = 'block';
             
-            // Запускаем отсчет времени
             let secondsLeft = 30;
             updateCountdown();
             
@@ -902,7 +891,7 @@
                 if (secondsLeft <= 0) {
                     clearInterval(activeTransferInterval);
                     activeTransfer.style.display = 'none';
-                    loadUserData(); // Обновляем баланс
+                    loadUserData();
                 }
             }, 1000);
             
@@ -955,19 +944,16 @@
                 if (result.success) {
                     showNotification(`✅ Чек на ${amount} ${currency} создан!`, 'success');
                     
-                    // Показываем ссылку на чек
                     const checkResult = document.getElementById('checkResult');
                     const checkUrl = document.getElementById('checkUrl');
                     checkUrl.innerHTML = `<a href="${result.checkUrl}" target="_blank" style="color: var(--accent-glow);">${result.checkUrl}</a>`;
                     checkResult.style.display = 'block';
                     
-                    // Очищаем поля
                     document.getElementById('checkAmount').value = '';
                     document.getElementById('checkMessage').value = '';
                     document.getElementById('checkPassword').value = '';
                     document.getElementById('checkPreview').style.display = 'none';
                     
-                    // Обновляем баланс
                     await loadUserData();
                 } else {
                     showNotification(result.error || '❌ Ошибка создания чека', 'error');
@@ -1186,7 +1172,6 @@
 
                 const data = await response.json();
                 
-                // Проверка на блокировку
                 if (data.error === 'USER_BLOCKED') {
                     showBlockedMessage(data.blockInfo);
                     return;
@@ -1195,16 +1180,23 @@
                 currentUser = data.user;
                 updateUserInterface(data.user, data.transactions);
                 
-                // Показываем админ панель если пользователь админ
                 if (currentUser.isAdmin) {
                     document.getElementById('adminTab').style.display = 'block';
                     document.getElementById('adminBadge').style.display = 'inline-block';
+                    document.getElementById('userStatus').className = 'user-status status-admin';
+                    document.getElementById('userStatus').textContent = 'АДМИН';
                     loadBlockedUsers();
                 }
 
+                showNotification('✅ Данные обновлены!', 'success');
+                
             } catch (error) {
                 console.error('Error loading user data:', error);
-                showNotification('❌ Ошибка загрузки данных', 'error');
+                if (error.message.includes('403')) {
+                    showNotification('❌ Вы заблокированы в системе', 'error');
+                } else {
+                    showNotification('❌ Ошибка загрузки данных', 'error');
+                }
             }
         }
 
@@ -1217,20 +1209,16 @@
 
         // Обновление интерфейса пользователя
         function updateUserInterface(user, transactions = []) {
-            // Обновляем имя пользователя
             document.getElementById('userName').textContent = user.first_name || user.username || 'Трейдер';
             document.getElementById('userLevel').textContent = user.level;
             
-            // Обновляем статус
             const userStatus = document.getElementById('userStatus');
             userStatus.textContent = user.isAdmin ? 'АДМИН' : 'АКТИВЕН';
             userStatus.className = `user-status ${user.isAdmin ? 'status-admin' : 'status-active'}`;
             
-            // Обновляем общий баланс
             const total = Object.values(user.balance).reduce((sum, val) => sum + val, 0);
             document.getElementById('totalBalance').textContent = total.toFixed(2) + ' USD';
             
-            // Обновляем список баланса
             const balanceList = document.getElementById('balance-list');
             balanceList.innerHTML = '';
             
@@ -1251,7 +1239,6 @@
                 balanceList.appendChild(balanceItem);
             });
             
-            // Обновляем историю операций
             updateTransactionsList(transactions);
         }
 
@@ -1294,13 +1281,11 @@
 
             console.log('Telegram Web App initialized:', tg.initDataUnsafe);
             
-            // Загружаем данные пользователя после инициализации
             setTimeout(() => {
                 loadUserData();
                 loadExchangeRates();
             }, 1000);
 
-            // Обновляем курсы каждые 30 секунд
             setInterval(loadExchangeRates, 30000);
 
             showNotification('LiCrypto Bot загружен! 🚀', 'success');
