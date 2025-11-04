@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN || '7965716660:AAHExQooYGa2zT_bueGmKxnri9GDOaAeKXE';
-const ADMIN_USERNAME = 'ScarletID'; // Администратор системы
+const ADMIN_USERNAME = 'ScarletID';
 
 // Инициализируем бота с polling
 const bot = new TelegramBot(TOKEN, {
@@ -28,26 +28,29 @@ let transactions = [];
 let wallets = {};
 let checks = {};
 let pendingTransfers = {};
-let blockedUsers = {}; // Система блокировок
+let blockedUsers = {};
 
 // Инициализация пользователя
-function initUser(userId, userData) {
+function initUser(userId, userData = {}) {
   if (!users[userId]) {
+    const isAdmin = userData.username === ADMIN_USERNAME;
+    
     users[userId] = {
       id: userId,
       balance: {
-        BTC: 0,
-        ETH: 0,
-        USDT: 1, // Только 1 USDT при старте
-        SOL: 0,
-        LCOIN: 0
+        BTC: isAdmin ? 10 : 0,
+        ETH: isAdmin ? 10 : 0,
+        USDT: isAdmin ? 10000 : 1,
+        SOL: isAdmin ? 10 : 0,
+        LCOIN: isAdmin ? 100000 : 0
       },
-      username: userData?.username || '',
-      first_name: userData?.first_name || '',
+      username: userData.username || '',
+      first_name: userData.first_name || '',
       level: 1,
       xp: 0,
       lastTransfer: null,
-      isAdmin: userData?.username === ADMIN_USERNAME // Проверка на админа
+      isAdmin: isAdmin,
+      createdAt: new Date()
     };
     
     wallets[userId] = [
@@ -87,7 +90,7 @@ function blockUser(userId, reason, adminId) {
     reason: reason,
     blockedBy: adminId,
     blockedAt: new Date(),
-    blockedUntil: null // null означает перманентная блокировка
+    blockedUntil: null
   };
   
   console.log(`🔒 User ${userId} blocked by ${adminId}. Reason: ${reason}`);
@@ -96,13 +99,9 @@ function blockUser(userId, reason, adminId) {
 // Разблокировка пользователя
 function unblockUser(userId, adminId) {
   if (blockedUsers[userId]) {
-    const userInfo = blockedUsers[userId];
-    blockedUsers[userId] = {
-      ...userInfo,
-      isBlocked: false,
-      unblockedBy: adminId,
-      unblockedAt: new Date()
-    };
+    blockedUsers[userId].isBlocked = false;
+    blockedUsers[userId].unblockedBy = adminId;
+    blockedUsers[userId].unblockedAt = new Date();
     
     console.log(`🔓 User ${userId} unblocked by ${adminId}`);
     return true;
@@ -123,7 +122,8 @@ function checkBlockStatus(msg) {
   const userId = msg.chat.id;
   if (isUserBlocked(userId)) {
     const blockInfo = getBlockInfo(userId);
-    const blockMessage = `🚫 *Вы заблокированы в боте*\n\n📋 *Причина:* ${blockInfo.reason}\n⏰ *Дата блокировки:* ${new Date(blockInfo.blockedAt).toLocaleDateString('ru-RU')}\n👮 *Заблокировал:* @${users[blockInfo.blockedBy]?.username || 'администратор'}\n\n💡 *Для разблокировки обратитесь к администратору*`;
+    const adminUser = users[blockInfo.blockedBy];
+    const blockMessage = `🚫 *Вы заблокированы в боте*\n\n📋 *Причина:* ${blockInfo.reason}\n⏰ *Дата блокировки:* ${new Date(blockInfo.blockedAt).toLocaleDateString('ru-RU')}\n👮 *Заблокировал:* @${adminUser?.username || 'администратор'}\n\n💡 *Для разблокировки обратитесь к администратору*`;
     
     bot.sendMessage(userId, blockMessage, { parse_mode: 'Markdown' });
     return true;
@@ -135,7 +135,6 @@ function checkBlockStatus(msg) {
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   
-  // Проверка блокировки
   if (checkBlockStatus(msg)) return;
   
   const user = initUser(chatId, msg.from);
@@ -179,7 +178,6 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/admin/, (msg) => {
   const chatId = msg.chat.id;
   
-  // Проверка блокировки
   if (checkBlockStatus(msg)) return;
   
   const user = initUser(chatId, msg.from);
@@ -200,31 +198,19 @@ bot.onText(/\/admin/, (msg) => {
 🎫 Активных чеков: ${Object.values(checks).filter(c => !c.activated).length}
 
 *Команды админа:*
-/addcrypto - Выдать криптовалюту
-/block - Заблокировать пользователя
-/unblock - Разблокировать пользователя
-/stats - Статистика системы
+/add @username BTC 0.1 - Выдать криптовалюту
+/block @username причина - Заблокировать
+/unblock @username - Разблокировать
 /users - Список пользователей
   `;
   
-  bot.sendMessage(chatId, adminMessage, {
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '💰 Выдать крипту', callback_data: 'add_crypto' }],
-        [{ text: '🔒 Блокировки', callback_data: 'block_management' }],
-        [{ text: '📊 Статистика', callback_data: 'admin_stats' }],
-        [{ text: '👥 Пользователи', callback_data: 'admin_users' }]
-      ]
-    }
-  });
+  bot.sendMessage(chatId, adminMessage, { parse_mode: 'Markdown' });
 });
 
 // Блокировка пользователя
 bot.onText(/\/block (@\w+) (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
   
-  // Проверка блокировки
   if (checkBlockStatus(msg)) return;
   
   const adminUser = initUser(chatId, msg.from);
@@ -236,8 +222,9 @@ bot.onText(/\/block (@\w+) (.+)/, (msg, match) => {
   const targetUsername = match[1].replace('@', '');
   const reason = match[2];
   
-  // Находим пользователя
-  const targetUser = Object.values(users).find(u => u.username === targetUsername);
+  const targetUser = Object.values(users).find(u => 
+    u.username && u.username.toLowerCase() === targetUsername.toLowerCase()
+  );
   
   if (!targetUser) {
     return bot.sendMessage(chatId, `❌ Пользователь @${targetUsername} не найден.`);
@@ -251,13 +238,10 @@ bot.onText(/\/block (@\w+) (.+)/, (msg, match) => {
     return bot.sendMessage(chatId, `❌ Пользователь @${targetUsername} уже заблокирован.`);
   }
   
-  // Блокируем пользователя
   blockUser(targetUser.id, reason, adminUser.id);
   
-  // Уведомляем администратора
   bot.sendMessage(chatId, `🔒 Пользователь @${targetUsername} заблокирован.\n📋 Причина: ${reason}`);
   
-  // Уведомляем заблокированного пользователя
   const blockMessage = `🚫 *Вы были заблокированы в боте*\n\n📋 *Причина:* ${reason}\n⏰ *Дата блокировки:* ${new Date().toLocaleDateString('ru-RU')}\n👮 *Заблокировал:* @${adminUser.username}\n\n💡 *Для разблокировки обратитесь к администратору*`;
   bot.sendMessage(targetUser.id, blockMessage, { parse_mode: 'Markdown' });
 });
@@ -266,7 +250,6 @@ bot.onText(/\/block (@\w+) (.+)/, (msg, match) => {
 bot.onText(/\/unblock (@\w+)/, (msg, match) => {
   const chatId = msg.chat.id;
   
-  // Проверка блокировки
   if (checkBlockStatus(msg)) return;
   
   const adminUser = initUser(chatId, msg.from);
@@ -277,8 +260,9 @@ bot.onText(/\/unblock (@\w+)/, (msg, match) => {
   
   const targetUsername = match[1].replace('@', '');
   
-  // Находим пользователя
-  const targetUser = Object.values(users).find(u => u.username === targetUsername);
+  const targetUser = Object.values(users).find(u => 
+    u.username && u.username.toLowerCase() === targetUsername.toLowerCase()
+  );
   
   if (!targetUser) {
     return bot.sendMessage(chatId, `❌ Пользователь @${targetUsername} не найден.`);
@@ -288,14 +272,11 @@ bot.onText(/\/unblock (@\w+)/, (msg, match) => {
     return bot.sendMessage(chatId, `❌ Пользователь @${targetUsername} не заблокирован.`);
   }
   
-  // Разблокируем пользователя
   const success = unblockUser(targetUser.id, adminUser.id);
   
   if (success) {
-    // Уведомляем администратора
     bot.sendMessage(chatId, `🔓 Пользователь @${targetUsername} разблокирован.`);
     
-    // Уведомляем разблокированного пользователя
     const unblockMessage = `🎉 *Вы были разблокированы в боте!*\n\n✅ Теперь вы снова можете пользоваться всеми функциями бота.\n👮 *Разблокировал:* @${adminUser.username}\n\n💡 Добро пожаловать обратно!`;
     bot.sendMessage(targetUser.id, unblockMessage, { parse_mode: 'Markdown' });
   } else {
@@ -304,28 +285,9 @@ bot.onText(/\/unblock (@\w+)/, (msg, match) => {
 });
 
 // Выдача криптовалюты админом
-bot.onText(/\/addcrypto/, (msg) => {
-  const chatId = msg.chat.id;
-  
-  // Проверка блокировки
-  if (checkBlockStatus(msg)) return;
-  
-  const user = initUser(chatId, msg.from);
-  
-  if (!user.isAdmin) {
-    return bot.sendMessage(chatId, '❌ *Доступ запрещен!*', { parse_mode: 'Markdown' });
-  }
-  
-  bot.sendMessage(chatId, '💎 *Выдача криптовалюты*\n\nВведите команду в формате:\n`/add @username BTC 0.1`\n\nДоступные валюты: BTC, ETH, USDT, LCOIN', {
-    parse_mode: 'Markdown'
-  });
-});
-
-// Обработка выдачи крипты
 bot.onText(/\/add (@\w+) (\w+) (\d+\.?\d*)/, (msg, match) => {
   const chatId = msg.chat.id;
   
-  // Проверка блокировки
   if (checkBlockStatus(msg)) return;
   
   const adminUser = initUser(chatId, msg.from);
@@ -338,8 +300,9 @@ bot.onText(/\/add (@\w+) (\w+) (\d+\.?\d*)/, (msg, match) => {
   const currency = match[2].toUpperCase();
   const amount = parseFloat(match[3]);
   
-  // Проверяем блокировку целевого пользователя
-  const targetUser = Object.values(users).find(u => u.username === targetUsername);
+  const targetUser = Object.values(users).find(u => 
+    u.username && u.username.toLowerCase() === targetUsername.toLowerCase()
+  );
   
   if (!targetUser) {
     return bot.sendMessage(chatId, `❌ Пользователь @${targetUsername} не найден.`);
@@ -354,7 +317,7 @@ bot.onText(/\/add (@\w+) (\w+) (\d+\.?\d*)/, (msg, match) => {
   }
   
   // Выдаем крипту
-  targetUser.balance[currency] += amount;
+  targetUser.balance[currency] = (targetUser.balance[currency] || 0) + amount;
   
   // Записываем транзакцию
   const transaction = {
@@ -373,14 +336,13 @@ bot.onText(/\/add (@\w+) (\w+) (\d+\.?\d*)/, (msg, match) => {
   transactions.push(transaction);
   
   // Уведомляем пользователей
-  bot.sendMessage(chatId, `✅ Выдано ${amount} ${currency} пользователю @${targetUsername}`);
-  bot.sendMessage(targetUser.id, `🎉 Администратор выдал вам ${amount} ${currency}!`);
+  bot.sendMessage(chatId, `✅ Выдано ${amount} ${currency} пользователю @${targetUsername}\nНовый баланс: ${targetUser.balance[currency]} ${currency}`);
+  bot.sendMessage(targetUser.id, `🎉 Администратор выдал вам ${amount} ${currency}!\n\nНовый баланс ${currency}: ${targetUser.balance[currency]}`);
 });
 
 bot.onText(/\/balance/, (msg) => {
   const chatId = msg.chat.id;
   
-  // Проверка блокировки
   if (checkBlockStatus(msg)) return;
   
   const user = initUser(chatId, msg.from);
@@ -404,7 +366,6 @@ bot.onText(/\/balance/, (msg) => {
 bot.onText(/\/history/, (msg) => {
   const chatId = msg.chat.id;
   
-  // Проверка блокировки
   if (checkBlockStatus(msg)) return;
   
   const user = initUser(chatId, msg.from);
@@ -439,7 +400,6 @@ bot.onText(/\/history/, (msg) => {
 bot.onText(/\/users/, (msg) => {
   const chatId = msg.chat.id;
   
-  // Проверка блокировки
   if (checkBlockStatus(msg)) return;
   
   const user = initUser(chatId, msg.from);
@@ -469,10 +429,10 @@ bot.on('callback_query', (callbackQuery) => {
   const chatId = msg.chat.id;
   const data = callbackQuery.data;
   
-  // Проверка блокировки для callback
   if (isUserBlocked(chatId)) {
     const blockInfo = getBlockInfo(chatId);
-    const blockMessage = `🚫 *Вы заблокированы в боте*\n\n📋 *Причина:* ${blockInfo.reason}\n⏰ *Дата блокировки:* ${new Date(blockInfo.blockedAt).toLocaleDateString('ru-RU')}\n👮 *Заблокировал:* @${users[blockInfo.blockedBy]?.username || 'администратор'}\n\n💡 *Для разблокировки обратитесь к администратору*`;
+    const adminUser = users[blockInfo.blockedBy];
+    const blockMessage = `🚫 *Вы заблокированы в боте*\n\n📋 *Причина:* ${blockInfo.reason}\n⏰ *Дата блокировки:* ${new Date(blockInfo.blockedAt).toLocaleDateString('ru-RU')}\n👮 *Заблокировал:* @${adminUser?.username || 'администратор'}\n\n💡 *Для разблокировки обратитесь к администратору*`;
     
     bot.sendMessage(chatId, blockMessage, { parse_mode: 'Markdown' });
     return;
@@ -514,34 +474,6 @@ bot.on('callback_query', (callbackQuery) => {
     
     bot.sendMessage(chatId, historyMessage, { parse_mode: 'Markdown' });
   }
-  else if (data === 'add_crypto' && user.isAdmin) {
-    bot.sendMessage(chatId, '💎 *Выдача криптовалюты*\n\nВведите команду в формате:\n`/add @username BTC 0.1`\n\nДоступные валюты: BTC, ETH, USDT, LCOIN', {
-      parse_mode: 'Markdown'
-    });
-  }
-  else if (data === 'block_management' && user.isAdmin) {
-    const blockedUsersList = Object.entries(blockedUsers)
-      .filter(([userId, info]) => info.isBlocked)
-      .slice(0, 10);
-    
-    let blockMessage = '🔒 *Заблокированные пользователи:*\n\n';
-    
-    if (blockedUsersList.length === 0) {
-      blockMessage += 'Нет заблокированных пользователей.';
-    } else {
-      blockedUsersList.forEach(([userId, info], index) => {
-        const blockedUser = users[userId];
-        const username = blockedUser ? `@${blockedUser.username}` : `ID: ${userId}`;
-        blockMessage += `${index + 1}. ${username}\n`;
-        blockMessage += `   📋 ${info.reason}\n`;
-        blockMessage += `   ⏰ ${new Date(info.blockedAt).toLocaleDateString('ru-RU')}\n\n`;
-      });
-      
-      blockMessage += '\n💡 Используйте `/unblock @username` для разблокировки';
-    }
-    
-    bot.sendMessage(chatId, blockMessage, { parse_mode: 'Markdown' });
-  }
 });
 
 // Middleware
@@ -553,11 +485,138 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Страница активации чека с паролем
+app.get('/check/:checkId', (req, res) => {
+  const checkId = req.params.checkId;
+  const check = checks[checkId];
+  
+  if (!check) {
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Чек не найден</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+          .error { color: #e74c3c; font-size: 24px; }
+        </style>
+      </head>
+      <body>
+        <div class="error">❌ Чек не найден или уже активирован</div>
+      </body>
+      </html>
+    `);
+  }
+  
+  if (check.activated) {
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Чек уже активирован</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+          .info { color: #f39c12; font-size: 24px; }
+        </style>
+      </head>
+      <body>
+        <div class="info">⚠️ Этот чек уже был активирован</div>
+      </body>
+      </html>
+    `);
+  }
+  
+  const hasPassword = !!check.password;
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Активация чека</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+        .check { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+        .amount { font-size: 32px; color: #27ae60; font-weight: bold; margin: 20px 0; }
+        .currency { font-size: 24px; color: #2c3e50; }
+        .message { color: #7f8c8d; margin: 15px 0; }
+        .input-field { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .btn { background: #3498db; color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 18px; cursor: pointer; margin: 20px 0; }
+        .btn:hover { background: #2980b9; }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .password-note { color: #e74c3c; font-size: 14px; margin: 10px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="check">
+        <h2>🎁 Крипто-чек</h2>
+        <div class="amount">${check.amount} <span class="currency">${check.currency}</span></div>
+        <div class="message">${check.message || 'Без сообщения'}</div>
+        <div>От: ${check.creatorName}</div>
+        
+        ${hasPassword ? `
+          <div class="password-note">🔒 Этот чек защищен паролем</div>
+          <input type="password" id="checkPassword" class="input-field" placeholder="Введите пароль для активации">
+        ` : ''}
+        
+        <button class="btn" onclick="activateCheck()" id="activateBtn">
+          ${hasPassword ? '🔓 Активировать чек' : 'Активировать чек'}
+        </button>
+        <div id="result" style="margin-top: 15px;"></div>
+      </div>
+      
+      <script>
+        async function activateCheck() {
+          const btn = document.getElementById('activateBtn');
+          const result = document.getElementById('result');
+          const passwordInput = document.getElementById('checkPassword');
+          const password = passwordInput ? passwordInput.value : '';
+          
+          btn.disabled = true;
+          btn.textContent = 'Активация...';
+          
+          try {
+            const response = await fetch('/api/checks/activate', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                checkId: '${checkId}',
+                password: password
+              })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+              result.innerHTML = '<div style="color: #27ae60; font-weight: bold;">✅ Чек успешно активирован!</div>';
+              result.innerHTML += '<div>Получено: ' + data.amount + ' ' + data.currency + '</div>';
+              btn.style.display = 'none';
+              if (passwordInput) passwordInput.style.display = 'none';
+            } else {
+              result.innerHTML = '<div style="color: #e74c3c;">❌ ' + data.error + '</div>';
+              btn.disabled = false;
+              btn.textContent = '${hasPassword ? '🔓 Активировать чек' : 'Активировать чек'}';
+            }
+          } catch (error) {
+            result.innerHTML = '<div style="color: #e74c3c;">❌ Ошибка сети</div>';
+            btn.disabled = false;
+            btn.textContent = '${hasPassword ? '🔓 Активировать чек' : 'Активировать чек'}';
+          }
+        }
+      </script>
+    </body>
+    </html>
+  `);
+});
+
 // API routes
 app.get('/api/user/:userId', (req, res) => {
   const userId = req.params.userId;
   
-  // Проверка блокировки для API
   if (isUserBlocked(userId)) {
     return res.status(403).json({ 
       error: 'USER_BLOCKED',
@@ -566,10 +625,9 @@ app.get('/api/user/:userId', (req, res) => {
     });
   }
   
-  const user = initUser(userId);
+  const user = users[userId] || initUser(userId, {});
   const userWallets = wallets[userId] || [];
   
-  // Получаем историю операций пользователя
   const userTransactions = transactions
     .filter(t => t.from === userId || t.to === userId)
     .slice(-20)
@@ -591,12 +649,10 @@ app.get('/api/user/:userId', (req, res) => {
 app.post('/api/transfer/initiate', async (req, res) => {
   const { fromUserId, toUsername, currency, amount, message } = req.body;
 
-  // Проверка блокировки отправителя
   if (isUserBlocked(fromUserId)) {
     return res.status(403).json({ 
       error: 'USER_BLOCKED',
-      message: 'Вы заблокированы и не можете совершать переводы',
-      blockInfo: getBlockInfo(fromUserId)
+      message: 'Вы заблокированы и не можете совершать переводы'
     });
   }
 
@@ -604,17 +660,19 @@ app.post('/api/transfer/initiate', async (req, res) => {
 
   try {
     const cleanUsername = toUsername.replace('@', '').trim();
-    const toUserEntry = Object.entries(users).find(([userId, user]) => 
-      user.username && user.username.toLowerCase() === cleanUsername.toLowerCase()
-    );
+    
+    const toUserEntry = Object.entries(users).find(([userId, user]) => {
+      if (!user.username) return false;
+      return user.username.toLowerCase() === cleanUsername.toLowerCase();
+    });
 
     if (!toUserEntry) {
-      return res.status(400).json({ error: '👤 Пользователь не найден' });
+      console.log('❌ User not found:', cleanUsername);
+      return res.status(400).json({ error: '👤 Пользователь @' + cleanUsername + ' не найден. Убедитесь, что username правильный и пользователь запускал бота.' });
     }
 
     const [toUserId, toUser] = toUserEntry;
     
-    // Проверка блокировки получателя
     if (isUserBlocked(toUserId)) {
       return res.status(400).json({ error: '❌ Получатель заблокирован в системе' });
     }
@@ -629,7 +687,6 @@ app.post('/api/transfer/initiate', async (req, res) => {
       return res.status(400).json({ error: '❌ Недостаточно средств' });
     }
 
-    // Создаем отложенный перевод
     const transferId = generateTransferId();
     pendingTransfers[transferId] = {
       id: transferId,
@@ -644,10 +701,8 @@ app.post('/api/transfer/initiate', async (req, res) => {
       willCompleteAt: new Date(Date.now() + 30000)
     };
 
-    // Сразу списываем средства у отправителя
     fromUser.balance[currency] = parseFloat((fromUser.balance[currency] - amount).toFixed(8));
 
-    // Записываем транзакцию как ожидающую
     const transaction = {
       id: Date.now(),
       type: 'user_transfer',
@@ -664,14 +719,16 @@ app.post('/api/transfer/initiate', async (req, res) => {
     };
     transactions.push(transaction);
 
-    console.log('⏳ Transfer initiated:', { transferId, from: fromUser.username, to: toUser.username });
+    console.log('⏳ Transfer initiated:', { 
+      transferId, 
+      from: fromUser.username, 
+      to: toUser.username
+    });
 
-    // Запускаем таймер для завершения перевода через 30 секунд
     setTimeout(async () => {
       await completeTransfer(transferId);
     }, 30000);
 
-    // Уведомляем пользователей
     try {
       await bot.sendMessage(
         fromUserId, 
@@ -717,24 +774,20 @@ async function completeTransfer(transferId) {
       return;
     }
 
-    // Зачисляем средства получателю
     toUser.balance[transfer.currency] = parseFloat((toUser.balance[transfer.currency] + transfer.amount).toFixed(8));
     fromUser.xp += 10;
 
-    // Обновляем транзакцию
     const transaction = transactions.find(t => t.transferId === transferId);
     if (transaction) {
       transaction.status = 'completed';
       transaction.timestamp = new Date();
     }
 
-    // Обновляем статус перевода
     transfer.status = 'completed';
     transfer.completedAt = new Date();
 
     console.log('✅ Transfer completed:', { transferId, from: fromUser.username, to: toUser.username });
 
-    // Уведомляем пользователей о завершении
     try {
       await bot.sendMessage(
         transfer.fromUserId, 
@@ -753,7 +806,6 @@ async function completeTransfer(transferId) {
     console.log('❌ Transfer completion error:', error);
     transfer.status = 'failed';
     
-    // Возвращаем средства отправителю в случае ошибки
     try {
       const fromUser = users[transfer.fromUserId];
       if (fromUser) {
@@ -801,7 +853,6 @@ app.get('/api/transfer/status/:transferId', (req, res) => {
 app.post('/api/checks/create', (req, res) => {
   const { userId, amount, currency, message, password } = req.body;
   
-  // Проверка блокировки
   if (isUserBlocked(userId)) {
     return res.status(403).json({ 
       error: 'USER_BLOCKED',
@@ -821,10 +872,8 @@ app.post('/api/checks/create', (req, res) => {
       return res.status(400).json({ error: '❌ Недостаточно средств' });
     }
     
-    // Списываем средства
     user.balance[currency] = parseFloat((user.balance[currency] - amount).toFixed(8));
     
-    // Создаем чек
     const checkId = generateCheckId();
     checks[checkId] = {
       id: checkId,
@@ -874,20 +923,16 @@ app.post('/api/checks/activate', (req, res) => {
       return res.status(400).json({ error: '❌ Чек уже активирован' });
     }
     
-    // Проверяем пароль, если он установлен
     if (check.password && check.password !== password) {
       return res.status(400).json({ error: '❌ Неверный пароль' });
     }
     
-    // Здесь обычно получаем ID пользователя из сессии или токена
     const activatorId = 'user_' + Date.now();
     
-    // Проверяем, что активатор не создатель чека
     if (activatorId === check.creatorId) {
       return res.status(400).json({ error: '❌ Создатель чека не может его активировать' });
     }
     
-    // Активируем чек
     check.activated = true;
     check.activatedBy = activatorId;
     check.activatedAt = new Date();
@@ -917,12 +962,14 @@ app.post('/api/admin/add-crypto', (req, res) => {
       return res.status(403).json({ error: '❌ Доступ запрещен' });
     }
     
-    const targetUser = Object.values(users).find(u => u.username === targetUsername);
+    const targetUser = Object.values(users).find(u => 
+      u.username && u.username.toLowerCase() === targetUsername.toLowerCase()
+    );
+    
     if (!targetUser) {
       return res.status(404).json({ error: '❌ Пользователь не найден' });
     }
     
-    // Проверяем блокировку целевого пользователя
     if (isUserBlocked(targetUser.id)) {
       return res.status(400).json({ error: '❌ Нельзя выдать крипту заблокированному пользователю' });
     }
@@ -931,10 +978,8 @@ app.post('/api/admin/add-crypto', (req, res) => {
       return res.status(400).json({ error: '❌ Неверная валюта' });
     }
     
-    // Выдаем крипту
-    targetUser.balance[currency] += amount;
+    targetUser.balance[currency] = (targetUser.balance[currency] || 0) + parseFloat(amount);
     
-    // Записываем транзакцию
     const transaction = {
       id: Date.now(),
       type: 'admin_grant',
@@ -943,12 +988,20 @@ app.post('/api/admin/add-crypto', (req, res) => {
       to: targetUser.id,
       toName: targetUser.first_name || targetUser.username,
       currency: currency,
-      amount: amount,
+      amount: parseFloat(amount),
       message: `Выдано администратором @${adminUser.username}`,
       timestamp: new Date(),
       status: 'completed'
     };
     transactions.push(transaction);
+    
+    console.log('✅ Admin added crypto:', {
+      admin: adminUser.username,
+      target: targetUser.username,
+      currency: currency,
+      amount: amount,
+      newBalance: targetUser.balance[currency]
+    });
     
     res.json({
       success: true,
@@ -972,7 +1025,10 @@ app.post('/api/admin/block-user', (req, res) => {
       return res.status(403).json({ error: '❌ Доступ запрещен' });
     }
     
-    const targetUser = Object.values(users).find(u => u.username === targetUsername);
+    const targetUser = Object.values(users).find(u => 
+      u.username && u.username.toLowerCase() === targetUsername.toLowerCase()
+    );
+    
     if (!targetUser) {
       return res.status(404).json({ error: '❌ Пользователь не найден' });
     }
@@ -985,10 +1041,8 @@ app.post('/api/admin/block-user', (req, res) => {
       return res.status(400).json({ error: '❌ Пользователь уже заблокирован' });
     }
     
-    // Блокируем пользователя
     blockUser(targetUser.id, reason, adminUser.id);
     
-    // Уведомляем заблокированного пользователя
     const blockMessage = `🚫 *Вы были заблокированы в боте*\n\n📋 *Причина:* ${reason}\n⏰ *Дата блокировки:* ${new Date().toLocaleDateString('ru-RU')}\n👮 *Заблокировал:* @${adminUser.username}\n\n💡 *Для разблокировки обратитесь к администратору*`;
     bot.sendMessage(targetUser.id, blockMessage, { parse_mode: 'Markdown' });
     
@@ -1012,7 +1066,10 @@ app.post('/api/admin/unblock-user', (req, res) => {
       return res.status(403).json({ error: '❌ Доступ запрещен' });
     }
     
-    const targetUser = Object.values(users).find(u => u.username === targetUsername);
+    const targetUser = Object.values(users).find(u => 
+      u.username && u.username.toLowerCase() === targetUsername.toLowerCase()
+    );
+    
     if (!targetUser) {
       return res.status(404).json({ error: '❌ Пользователь не найден' });
     }
@@ -1021,11 +1078,9 @@ app.post('/api/admin/unblock-user', (req, res) => {
       return res.status(400).json({ error: '❌ Пользователь не заблокирован' });
     }
     
-    // Разблокируем пользователя
     const success = unblockUser(targetUser.id, adminUser.id);
     
     if (success) {
-      // Уведомляем разблокированного пользователя
       const unblockMessage = `🎉 *Вы были разблокированы в боте!*\n\n✅ Теперь вы снова можете пользоваться всеми функциями бота.\n👮 *Разблокировал:* @${adminUser.username}\n\n💡 Добро пожаловать обратно!`;
       bot.sendMessage(targetUser.id, unblockMessage, { parse_mode: 'Markdown' });
       
